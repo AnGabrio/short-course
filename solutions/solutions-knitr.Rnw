@@ -1,0 +1,479 @@
+% --------------------------------------------------------------
+% This is all preamble stuff that you don't have to worry about.
+% Head down to where it says "Start here"
+% --------------------------------------------------------------
+ 
+\documentclass[12pt]{article}
+ 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage[section]{placeins}
+\usepackage{rotating}
+\usepackage{color}
+\usepackage[english]{babel}
+\usepackage{standalone}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{rotating}
+\usepackage{graphics}
+\graphicspath{ {image/} }
+\usepackage{listings}
+\usepackage{setspace}
+\usepackage{natbib}
+\bibpunct{(}{)}{;}{a}{,}{,}
+\usepackage{url}
+\usepackage[titletoc,title]{appendix}
+\usepackage{cite}
+\usepackage[left=1.5cm,right=1.5cm,top=2cm,bottom=2cm]{geometry}
+\usepackage[titletoc]{appendix}
+\usepackage{tikz}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;} 
+\usetikzlibrary{fit,positioning}
+\usetikzlibrary{bayesnet}
+\usetikzlibrary{shapes}
+\usetikzlibrary{arrows, decorations.markings, matrix}
+\usetikzlibrary{fit}
+\usetikzlibrary{chains}
+\usetikzlibrary{arrows}
+\usepackage[font=footnotesize, labelfont={bf}, margin=1cm]{caption}
+\usetikzlibrary {trees}
+\usetikzlibrary{arrows,positioning,shapes.geometric}
+\usepackage{forest}
+\usepackage{tikz-qtree}
+\usepackage{rotating}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{enumerate,multicol}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{enumitem,bm}
+\usepackage{parcolumns}
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}  
+\newcommand\Bstrut{\rule[-0.9ex]{0pt}{0pt}} 
+\providecommand{\keywords}[1]{{\bf{Key words:}} #1}
+\providecommand{\tables}[1]{{\bf{Tables:}} #1}
+\providecommand{\figures}[1]{{\bf{Figures:}} #1}
+\providecommand{\words}[1]{{\bf{Words:}} #1}
+\providecommand{\runhead}[1]{{\bf{Running Head:}} #1}
+\usepackage[multiple]{footmisc}
+\usepackage[sectionbib]{chapterbib}
+\usepackage{authblk}
+\usepackage{etoolbox}
+\usepackage[position=bottom]{subfig}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{ctable}
+\usepackage{fancyvrb} % for simple solution
+\usepackage{listings,color} % for colored solution
+\usepackage{moreverb}
+
+\addto{\captionsenglish}{\renewcommand{\abstractname}{\bf{Summary}}}
+
+\lstset{
+    literate={~} {$\sim$}{1}
+}
+
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+}
+ 
+
+\begin{document}
+
+<<include=FALSE>>=
+library(knitr)
+opts_chunk$set(
+concordance=TRUE
+)
+@
+
+ 
+ <<include=FALSE>>=
+library(knitr)
+opts_chunk$set(prompt = TRUE, highlight = F, background = '#FFFFFF',
+concordance=TRUE
+)
+@
+ 
+% --------------------------------------------------------------
+%                         Start here
+% --------------------------------------------------------------
+ 
+\title{\Large \textbf{Methods for addressing missing data in health economic~evaluations}}
+\author{XXXIX Spanish Health Economics Meeting \\ 
+Pre-conference worshop: Solutions}
+\date{11 June 2019 \\ \line(1,0){550} }
+
+\maketitle
+
+\vspace*{1cm}
+
+\section*{Exercise 1: Install missingHE and inspect the data}\label{sec1}
+\begin{itemize}
+\item[a-b] Open \texttt{Rstudio} and proceed to install the \textbf{missingHE} package using the command
+ <<chunk_sol1.1, eval=FALSE, echo=TRUE>>=
+install.packages("missingHE")
+@
+Next, load the package using
+ <<chunk_sol1.2, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+library(missingHE)
+@
+The object \texttt{MenSS} can be now accessed. We can use the command \texttt{str} to obtain summary information about the number and type of variables included in this dataset. 
+ <<chunk_sol1.3, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+str(MenSS)
+@
+There are 159 individuals in the trial and for each of them, economic data are available for the QALYs ($e$), total costs ($c$) and baseline utilities ($u_0$). Three other baseline covariates are included in the dataset: age (continuous), ethnicity and employment (binary), while $t$ denotes the treatment indicator which assigns individuals to either the control ($t=1$) or intervention ($t=2$) group.. 
+\item[c] A quick summary of the dataset can be obtained by typing
+ <<chunk_sol1.4, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+summary(MenSS)
+@
+All variables, with the exception of $e$ and $c$, are fully observed. There is a total of 113 individuals with missing QALYs and cost data (i.e.~about $\approx 70\%$). From the value of the summary statistics for $e$ and $c$ we can see that the observed QALYs lie between [0.6,1] and are negatively skewed (mean < median), while costs are defined between [0,1000] and are positively skewed (mean > median). In addition, there are individuals who are associated with some structural values in both the QALYs (1) and costs (0).
+We can inspect the distribution of the two outcomes using histograms, e.g. using the following commands
+ <<chunk_sol1.5, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+hist(MenSS$e)
+hist(MenSS$c)
+@
+The degree of skewness in the empirical distributions of the two outcomes appears to be relatively high with a substantial spike at the boundaries of the value range. You can also display the distributions of the variables by treatment group using the commands
+ <<chunk_sol1.6, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(2,2))
+hist(MenSS$e[MenSS$t==1])
+hist(MenSS$e[MenSS$t==2])
+hist(MenSS$c[MenSS$t==1])
+hist(MenSS$c[MenSS$t==2])
+@
+\end{itemize}
+
+\section*{Exercise 2: Selection models}\label{sec2}
+\begin{itemize}
+\item[a] Follow the script and fit the bivariate Normal model using the \texttt{selection} function 
+ <<chunk_sol2.1, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.sel=selection(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.me = me ~ 1, model.mc = mc ~ 1, type = "MAR", n.chains = 2, 
+  n.iter = 10000, n.burnin = 1000, dist_e = "norm", dist_c = "norm", 
+  save_model = TRUE)
+@
+ <<chunk_sol2.1b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.sel=selection(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.me = me ~ 1, model.mc = mc ~ 1, type = "MAR", n.chains = 2, 
+  n.iter = 10000, n.burnin = 1000, dist_e = "norm", dist_c = "norm", 
+  save_model = TRUE)
+@
+\item[b] The \texttt{JAGS} model generated in the file \texttt{selection.txt} by the commands above can be represented as follows. First, a marginal Normal distribution for the effectiveness is assumed
+\[ e_i \sim \mbox{Normal}(\phi_{iet},\sigma_{et}),\]
+where the individual mean response (QALYs) is modelled using a linear regression as a function of the baseline utility 
+\[ \phi_{iet} = \alpha_{0t} + \alpha_{1t}u_{i0t}.\]
+In the \texttt{JAGS} code, Normal distributions are defined in terms of precision $\tau_{et}$ rather than the variance, where $\tau_{et}=\frac{1}{\sigma^2_{et}}$. The linear predictor simply translates the conditional regression for $\phi_{iet}$, while the marginal mean of the QALYs $\mu_{et}$ is calculated by replacing the baseline utilities with their mean values  
+\[ \mu_{et} = \alpha_{0t} + \alpha_{1t}\bar{u}_{0t}.\]
+Next, a similar approach is used to model the costs
+\[ c_i \sim \mbox{Normal}(\phi_{ict},\sigma_{ct}),\]
+where the mean is specified as the linear predictor
+\[ \phi_{ict} = \beta_{0t} + \beta_{1t}(e_{i}-\mu_{et}).\]
+Because the covariate included in this model is centered, the marginal mean costs corresponds to the intercept term, i.e.~$\mu_{ct}=\beta_{0t}$.
+
+The models for the missing data indicators is specified using Bernoulli distributions, 
+\[ m_{ie}\sim\mbox{Bernoulli}(\pi_{et}) \quad \text{and} \quad m_{ic}\sim\mbox{Bernoulli}(\pi_{ct}) \]
+where the probability of missingness is modelled on the logit scale
+\[ \mbox{logit}(\pi_{et})=\gamma_{et} \quad \text{and} \quad \mbox{logit}(\pi_{ct})=\gamma_{ct}. \]
+Since no covariates are included in the models, the probabilities of missingness depend only on the random terms $\gamma_{et}$ and $\gamma_{ct}$. 
+
+The \texttt{JAGS} code is replicated for the two treatment groups and by default it specifies vague prior distributions on all model parameters:
+\begin{itemize}
+\item[$\bullet$] $\bm \alpha=(\alpha_{0t},\alpha_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\bm \beta=(\beta_{0t},\beta_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\text{log} \bm \sigma=(\text{log} \sigma_{et}, \text{log} \sigma_{ct}) \overset{iid}{\sim} \mbox{Uniform}(-5, 10)$, which induce the priors on $\bm \sigma$ and then on $\bm \tau$
+\item[$\bullet$] $\bm \gamma=(\gamma_{et},\gamma_{ct}) \overset{iid}{\sim} \mbox{Logistic}(0, 1)$
+\end{itemize}
+The \texttt{JAGS} code maps these assumptions directly and also adds some lines to derive the marginal missingness probabilities $(p_{et},p_{ct})$ and the log-likelihood for each node which is explicitly modelled. These are then used by \textbf{missigHE} to compute different measures of model fit.  
+\item[c] We can visualise key posterior summaries of all the parameters in the model by typing
+ <<chunk_sol2.2, eval=TRUE, echo=TRUE>>=
+print(NN.sel)
+@
+We can also access selected summary statistics for the mean QALY and cost parameters ($\mu_{et},\mu_{ct}$), such as mean, sd, 2.5- and 97.5\% quantiles as well as the convergence statistics, by using the following command
+ <<chunk_sol2.3, eval=TRUE, echo=TRUE>>=
+NN.sel$model_output$summary[grep("mu",rownames(NN.sel$model_output$summary)),
+  c("mean","sd","2.5%","97.5%","Rhat","n.eff")]
+@
+which shows the selected summary statistics for all the nodes whose name contains the keyword \texttt{mu}
+(this is done using the \texttt{grep} function - see \texttt{help(grep)} for more details).
+
+\item[d] Different types of diagnostic plots can be selected using the \texttt{type} argument in the \texttt{diagnostic} function. Two of the most popular diagnostic graphs are the density and trace plots. The former correspond to smoothed histograms of the posterior samples of the parameters in each chain, while the latter plot the value of the parameters at each iteration for each chain. For example, we can display the density plots for the mean QALYs in both treatment groups by setting the arguments \texttt{type="denplot"} and \texttt{param="mu.e"}.
+ <<chunk_sol2.4, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+diagnostic(NN.sel, type = "denplot", param = "mu.e")
+@
+Similarly, we can obtain the trace plots for the same parameters by setting the argument~\texttt{type="traceplot"}.
+ <<chunk_sol2.5, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+diagnostic(NN.sel, type = "traceplot", param = "mu.e")
+@
+Both types of graphs do not show evidence of any issue in the convergence of the MCMC algorithm for these parameters and suggest a good mixing of the chains.
+\item[e] We can use the function \texttt{plot} to display the distribution of the observed and imputed data in both outcome variables and treatment groups. The following command
+ <<chunk_sol2.6, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+NN.sel.imp=plot(NN.sel)
+@
+returns the plot of the observed (denoted with black dots) and imputed data, the latter being represented in terms of the posterior means and 95\% credible intervals (denoted with red dots and lines). Different graphs are displayed for the QALYs and costs variables in each treatment group. Overall, imputed values for both outcomes exceed the natural range of the variables, i.e.~imputed QALYs and costs can be higher then one and lower than zero, respectively. This suggests that Normal distributions can generate implausible imputed values for these variables and therefore may lead to incorrect inferences. We can also use \texttt{plot} to display the imputed values for only one type of outcome in a specific treatment group. For example, the imputed QALYs in the control group can be shown by setting the optional argument \texttt{outcome="effects\_arm1"} and using the following command
+ <<chunk_sol2.7, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+NN.sel.imp=plot(NN.sel, outcome = "effects_arm1")
+@
+The object \texttt{NN.sel.imp} is a list which contains the observed and imputed QALYs in each treatment group. For example, we can use the following commands to compare the histograms of the observed and imputed QALYs in the control group.
+ <<chunk_sol2.8, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+hist(NN.sel.imp$`observed data`$effects1)
+hist(NN.sel.imp$`imputed data`$effects1)
+@
+The two plots show clear differences between the distribution of the observed and imputed data, with the latter that can also exceed the upper boundary of one.
+\item[f] We can use the \texttt{summary} function to summarise the economic results from the model using the following command.
+ <<chunk_sol2.9, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+summary(NN.sel)
+@
+The mean QALYs and costs on average are higher in the intervention and control group, respectively, as also indicated by the values of the mean differentials \texttt{delta.effects} and \texttt{delta.costs} between the two groups. This is also reflected in the negative value of the ICER, which indicates that the new intervention dominates the control.
+
+We can load the package \textbf{BCEA} and use the functions \texttt{ceplane.plot} and \texttt{ceac.plot} to display the cost-effectiveness plane and cost-effectiveness acceptability curve based on the results from the model. These two plots can be generated using the following commands.
+ <<chunk_sol2.10, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+library(BCEA)
+par(mfrow=c(1,2))
+ceplane.plot(NN.sel$cea)
+ceac.plot(NN.sel$cea)
+@
+Both graphs indicate that the new intervention has a high chance of being cost-effective with respect to the control for most values of the acceptance threshold.
+\item[g] We can modify different types of assumptions of the model to assess the impact of alternative specifications on the final results. Alternative models can be fitted by changing the value of the arguments in the \texttt{selection} function. For example, we can include the covariate age in both missingness models (\texttt{model.me} and \texttt{model.mc}) to specify a MAR mechanism. Finally, we use Beta and Gamma distributions to model the QALYs and cost variables, respectively. Since these distributions are not defined when $e_i=1$ and $c_i=0$, we subtract/add a small constant to the two variables to avoid the boundary values. The commands used to modify the data and fit the models are the following.
+ <<chunk_sol2.11, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+MenSS.star=MenSS
+MenSS.star$e=MenSS$e-0.05
+MenSS.star$c=MenSS$c+0.05
+BG.sel=selection(data = MenSS.star, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.me = me ~ age, model.mc = mc ~ age, type = "MAR", n.chains = 2, 
+  n.iter = 10000, n.burnin = 1000, dist_e = "beta", dist_c = "gamma", 
+  save_model = TRUE)
+@
+ <<chunk_sol2.11b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+MenSS.star=MenSS
+MenSS.star$e=MenSS$e-0.05
+MenSS.star$c=MenSS$c+0.05
+BG.sel=selection(data = MenSS.star, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.me = me ~ age, model.mc = mc ~ age, type = "MAR", n.chains = 2, 
+  n.iter = 10000, n.burnin = 1000, dist_e = "beta", dist_c = "gamma", 
+  save_model = TRUE)
+@
+The first two lines are used to set the random seed and create a second version of the dataset (\texttt{MenSS.star}). The third and fourth lines rescale the QALYs and costs in this new dataset by subtracting and adding a small constant, respectively. The fifth line re-fits the model under the specification described above.
+
+A quick inspection of the posterior results for the mean QALYs and costs under the new model can be obtained using the following command.
+ <<chunk_sol2.12, eval=TRUE, echo=TRUE>>=
+BG.sel$model_output$summary[grep("mu",rownames(BG.sel$model_output$summary)),
+  c("mean","sd","2.5%","97.5%","Rhat","n.eff")]
+@
+Next, we use the function \texttt{plot} to show the imputed QALYs in the control group for the Beta-Gamma model.
+ <<chunk_sol2.13, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+BG.sel.imp=plot(BG.sel, outcome = "effects_arm1")
+@
+Imputations under the Beta-Gamma model seem more reasonable compared with those from the bivariate Normal model since all QALYs are defined within the range of the observed data. Finally, we visually compare the economic results from the bivariate Normal and Beta-Gamma models. Cost-effectiveness acceptability curves can then be displayed using the following commands.
+ <<chunk_sol2.14, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+ceac.plot(NN.sel$cea)
+ceac.plot(BG.sel$cea)
+@
+The results from the Beta-Gamma model (right graph) show a probability of cost-effectivness of the new intervention wich is shifted downwards compared with that from the bivariate Normal model (left graph). Thus, under MAR, the bivariate Normal model seems to overestimate the true cost-effectiveness of the new intervention compared with the Beta-Gamma model. This is also suggested when assessing the fit of the two models using the DIC, which can be obtained through the function \texttt{pic}. 
+ <<chunk_sol2.15, eval=TRUE, echo=TRUE>>=
+pic(NN.sel)[3]
+pic(BG.sel)[3]
+@
+The better fit of the Beta-Gamma model is indicated by the fact that the DIC associated with this model is lower compared with that from the bivariate Normal model. 
+\end{itemize}
+
+\section*{Exercise 3: Pattern mixture models}\label{sec3}
+\begin{itemize}
+\item[a] Follow the script and fit the bivariate Normal model using the \texttt{pattern} function 
+ <<chunk_sol3.1, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.pat=pattern(data = MenSS, model.eff = e~u.0, model.cost = c~e, 
+  type = "MAR", n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "norm",
+  dist_c = "norm", Delta_e = 0, Delta_c = 0, save_model = TRUE)
+@
+ <<chunk_sol3.1b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.pat=pattern(data = MenSS, model.eff = e~u.0, model.cost = c~e, type = "MAR",
+  n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "norm", dist_c = "norm",
+  Delta_e = 0, Delta_c = 0, save_model = TRUE)
+@
+\item[b] The \texttt{JAGS} model generated in the file \texttt{pattern.txt} by the commands above is similar to the one fitted with the \texttt{selection} function, but is now specified within each missingness pattern $\bm r$. Since, in the MenSS trial, the individual QALYs and costs can be either fully-observed ($r=(1,1)$) or completely missing ($r=(0,0)$), the model can only be fitted within these two missingness patterns. The model is specified as follows.
+
+First, a marginal Normal distribution for the effectiveness is assumed within each pattern~$\bm r=[(1,1),(0,0)]$
+\[ e_i \sim \mbox{Normal}(\phi^{\bm r}_{iet},\sigma^{\bm r}_{et}),\]
+and the usual linear regression is used to control for the baseline utilities
+\[ \phi^{\bm r}_{iet} = \alpha^{\bm r}_{0t} + \alpha^{\bm r}_{1t}u_{i0t}.\]
+The marginal mean of the QALYs in each pattern $\mu^{\bm r}_{et}$ is then calculated by replacing the baseline utilities with their mean values  
+\[ \mu^{\bm r}_{et} = \alpha^{\bm r}_{0t} + \alpha^{\bm r}_{1t}\bar{u}_{0t}.\]
+Next, a similar approach is used to model the costs
+\[ c_i \sim \mbox{Normal}(\phi^{\bm r}_{ict},\sigma^{\bm r}_{ct}),\]
+where the mean is specified as the linear predictor
+\[ \phi^{\bm r}_{ict} = \beta^{\bm r}_{0t} + \beta^{\bm r}_{1t}(e_{i}-\mu^{\bm r}_{et}).\]
+The marginal mean costs can be identified with the intercept term, i.e.~$\mu^{\bm r}_{ct}=\beta^{\bm r}_{0t}$.
+The model for the missingness patterns is specified using a Multinomial distribution, 
+\[ \bm r_i\sim\mbox{Multinomial}(\bm \lambda^{\bm r}_{t}), \]
+where $\bm r \in \{(1,1), (0,0)\}$, while $\bm \lambda^{\bm r}_t$ denotes the pattern probabilities conditional on the treatment assignment $t$. 
+The \texttt{JAGS} code is replicated for the two treatment groups and by default it specifies vague prior distributions on all parameters that index the distribtuion of the observed QALYs and costs (i.e.~in the pattern $r=(1,1)$) and for $\bm \lambda^{\bm r}_{t}$.
+\begin{itemize}
+\item[$\bullet$] $\bm \alpha=(\alpha^{r=(1,1)}_{0t},\alpha^{r=(1,1)}_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\bm \beta=(\beta^{r=(1,1)}_{0t},\beta^{r=(1,1)}_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\text{log} \bm \sigma^{r=(1,1)}=(\text{log} \sigma^{r=(1,1)}_{et}, \text{log} \sigma^{r=(1,1)}_{ct}) \overset{iid}{\sim} \mbox{Uniform}(-5, 10)$
+\item[$\bullet$] $\bm \lambda^{\bm r}_{t} \sim \mbox{Dirichlet}(1,\ldots, 1)$
+\end{itemize}
+Next, identifying restrictions and sensitivity parameters are used to identify the distribution of the missing data. Since the key quantities of interest for the economic analysis are the mean QALYs and costs, the distribution of missingness is identified only up to these parameters. More specifically, the marginal mean outcome parameters in $r=(0,0)$ are identified using the corresponding means estimated from the completers $r=(1,1)$ (complete case restriction) and some sensitivity parameters $\bm \Delta_t=(\Delta_{et},\Delta_{ct})$:
+\[ \mu^{r=(0,0)}_{et}=\mu^{r=(1,1)}_{et} + \Delta_{et} \quad \text{and} \quad \mu^{r=(0,0)}_{ct}=\mu^{r=(1,1)}_{ct} + \Delta_{ct}. \]
+Under MAR, both $\Delta_{et}$ and $\Delta_{ct}$ are set to 0, while under MNAR Uniform prior distributions are assumed on $\bm \Delta_t$, whose hyperprior values $\bm \delta_t$ must be provided by the user:
+\[ \Delta_{et} \sim \mbox{Uniform}(\delta^1_{et},\delta^2_{et}) \quad \text{and} \quad \Delta_{ct} \sim \mbox{Uniform}(\delta^1_{ct},\delta^2_{ct}). \]
+Once the mean parameters indexing the distribution of the missing data have been identified, then the overall mean QALYs and costs are calculated as weighted averages of the means across all patterns, i.e.~$\mu_{et}=\sum_{r}\mu^{r}_{et}\lambda^r_t$ and $\mu_{ct}=\sum_{r}\mu^{r}_{ct}\lambda^r_t$.
+\item[c] Selected summary statistics for the mean QALY and cost parameters can be obtained by using the following command
+ <<chunk_sol3.2, eval=TRUE, echo=TRUE>>=
+NN.pat$model_output$summary[grep("mu",rownames(NN.pat$model_output$summary)),
+  c("mean","sd","2.5%","97.5%","Rhat","n.eff")]
+@
+Estimates are reported for both the pattern-specific (\texttt{mu\_e\_p} and \texttt{mu\_c\_p}) and overall means (\texttt{mu\_e} and \texttt{mu\_c}). Since, in the MenSS trial, QALYs and costs can be only either completely observed or missing and the model identifies the means in $r=(0,0)$ using those from $r=(1,1)$, under MAR, the estimates in the two patterns are the same and also coincide with the overall means $\mu_{et}$ and~$\mu_{ct}$.   
+\item[d] The usual diagnostic plots for all model parameters can be obtained through the function \texttt{diagnostic}. When the model is fitted using the function \texttt{pattern} it is also possible to display the diagnostics for the pattern-specifc mean QALYs, mean costs and probabilities using the argument \texttt{param="mu.e.p"}, \texttt{param="mu.c.p"} and \texttt{param="pattern"}, respectively. For example, the density plots for the mean QALYs by missingness pattern and treatment group can be obtained using the following command  
+ <<chunk_sol3.3, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+diagnostic(NN.pat, type = "denplot", param = "mu.e.p")
+@
+where \texttt{mu\_e\_p1} and \texttt{mu\_e\_p2} indicate the mean QALYs in $r=(1,1)$ and $r=(0,0)$, while the indices \texttt{[1]} and \texttt{[2]} are associated with the control and intervention group, respectively.
+
+The distribution of the missing data can be inspected using the usual command \texttt{plot}. For example, the plot of the observed and imputed costs in the control group can be obtained by typing
+ <<chunk_sol3.4, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+NN.pat.imp=plot(NN.pat, outcome = "costs_arm1")
+@
+\item[e] Using the functions in the package \textbf{BCEA} we obtain the cost-effectiveness plane and cost-effectiveness acceptability curve based on the results from the model.
+ <<chunk_sol3.5, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+ceplane.plot(NN.pat$cea)
+ceac.plot(NN.pat$cea)
+@
+The cost-effectiveness results under MAR are almost identical with respect to those obtained from using the \texttt{selection} function since the parameters in the model are estimated from the same observed data and the only patterns in the dataset are $r=(1,1)$ and $r=(0,0)$.
+\item[f] We now change the specification of the model and fit it under a MNAR assumption for the QALYs. We first define the hyperprior values of the prior distributions of the sensitivity parameters $\Delta_{et}$ using the following commands
+ <<chunk_sol3.6, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+prior.Delta.e=matrix(NA, nrow = 2, ncol = 2)
+prior.Delta.e[,1]=c(-0.2, -0.2)
+prior.Delta.e[,2]=c(-0.1, -0.1)
+@
+The first line creates the $2 \times 2$ matrix \texttt{prior.Delta.e} which is then filled-in by the commands in the last two lines. Specifically, the lower and upper bounds for the distributions of $\Delta_{et}$ ($-0.2$ and $-0.1$) are provided for the control (first row) and intervention (second row) group. Next, the object \texttt{prior.Delta.e} is passed to the argument \texttt{Delta.e} in the \texttt{pattern} function and the argument \texttt{type} is set to \texttt{"MNAR"}. The model can be fitted by typing
+ <<chunk_sol3.7, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.pat.mnar=pattern(data = MenSS, model.eff = e~u.0, model.cost = c~e, type = "MNAR",
+  n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "norm", dist_c = "norm",
+  Delta_e = prior.Delta.e, Delta_c = 0, save_model = TRUE)
+@
+ <<chunk_sol3.7b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.pat.mnar=pattern(data = MenSS, model.eff = e~u.0, model.cost = c~e, 
+  type = "MNAR", n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "norm", 
+  dist_c = "norm", Delta_e = prior.Delta.e, Delta_c = 0, save_model = TRUE)
+@
+A summary comparison of the cost-effectiveness results between the pattern mixture model fitted under MAR and MNAR can be obtained using the following commands
+ <<chunk_sol3.8, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+ceac.plot(NN.pat$cea)
+ceac.plot(NN.pat.mnar$cea)
+@
+The cost-effectiveness probability is considerably lower for the model fitted under MNAR (right graph) compared with MAR (left graph). This suggests that the results under MAR are not robust to the MNAR departure explored and can potentially lead to incorrect conclusions.
+\end{itemize}
+
+\section*{Exercise 4: Hurdle models}\label{sec4}
+\begin{itemize}
+\item [a] Follow the script and fit the bivariate Normal model using the \texttt{hurdle} function
+ <<chunk_sol4.1, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.hur=hurdle(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e,
+  model.se = se ~ 1, model.sc = sc ~ 1, type = "SCAR", se = 1, sc = 0,
+  n.chains = 2, n.iter = 10000, n.burnin = 1000,
+  dist_e = "norm", dist_c = "norm", save_model = TRUE)
+@
+ <<chunk_sol4.1b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+NN.hur=hurdle(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e,
+  model.se = se ~ 1, model.sc = sc ~ 1, type = "SCAR", se = 1, sc = 0,
+  n.chains = 2, n.iter = 10000, n.burnin = 1000,
+  dist_e = "norm", dist_c = "norm", save_model = TRUE)
+@
+\item[b] The \texttt{JAGS} model generated in the file \texttt{hurdle.txt} by the commands above is similar to the one fitted with the \texttt{selection} function, but replaces the missingness models with the models for the structural value indicators for the QALY and cost data ($d_{iet},d_{ict}$), which are indicated by the arguments \texttt{model.se} and \texttt{model.sc}, respectively. The choice of the observed values that should be considered as "structural" by the model is made through the arguments \texttt{se} and \texttt{sc}; in case the structural values are only observed for one outcome, for example the effects, it is possible to set \texttt{sc=NULL} to fit the hurdle model only to the effect variables. Since in the MenSS trial both unit QALYs and zero costs are observed, a hurdle model is specified to handle both types of structural values. The model is specified as follows.
+
+The \texttt{JAGS} model uses a different sampling distribution for both the effects and costs, depending on the observed values of the indicators $d_{ie}$ and $d_{ic}$, respectively. Thus, the models for the effects and costs can be represented as mixture models, each formed by two components: $e_i<1$ and $e_i=1$ for the effects, and $c_i>0$ and $c_i=0$ for the costs. For example, the marginal model for the effects can be represented as  
+\[e_i \sim \mbox{Normal}(\phi_{iet}^{d_{ie}},\sigma_{et}^{d_{ie}}).\]
+When $d_{ie}=1$ (i.e.~$e_i=1$) a degenerate distribution at a point mass at 1 is fitted to the data, while when $d_{ie}=0$ (i.e.~$e_i<1$) a Normal distribution is fitted to the data. The usual linear regression is used to control for the baseline utilities
+\[ \phi^{d_{ie}}_{iet} = \alpha^{d_{ie}}_{0t} + \alpha^{d_{ie}}_{1t}u_{i0},\]
+where $\alpha^{0}_{0t}=1$ and $\alpha^{0}_{1t}=0$ for those individuals with $e_i=1$. The marginal means of the QALYs in the two mixture components are then calculated as  
+\[ \mu^{0}_{et} = \alpha^{0}_{0t} + \alpha^{0}_{1t}\bar{u}_{0t} \quad \text{and} \quad \mu^{1}_{et} = \alpha^{1}_{0t}. \]
+A similar approach is used for the model of the costs 
+\[c_{it} \sim \mbox{Normal}(\phi_{ict}^{d_{ic}},\sigma_{ct}^{d_{ic}}).\]
+When $d_{ic}=1$ (i.e.~$c_i=0$) a degenerate distribution at a point mass at 0 is fitted to the data, while when $d_{ic}=0$ (i.e.~$c_i>0$) a Normal distribution is fitted to the data. The conditional mean cost is specified as the linear predictor
+\[ \phi^{d_{ic}}_{ict} = \beta^{d_{ic}}_{0t} + \beta^{d_{ic}}_{1t}(e_i-\mu_{et}),\]
+where $\beta^{0}_{0t}=0$ and $\beta^{0}_{1t}=0$ for those individuals with $c_i=0$. The marginal means of the costs in the two mixture components are then calculated as  
+\[ \mu^{0}_{ct} = \beta^{0}_{0t} \quad \text{and} \quad \mu^{1}_{ct} = \beta^{1}_{0t}. \]
+The models for the structural value indicators is specified using Bernoulli distributions, 
+\[ d_{ie}\sim\mbox{Bernoulli}(\pi_{et}) \quad \text{and} \quad d_{ic}\sim\mbox{Bernoulli}(\pi_{ct}) \]
+where the probability of having a structural value is modelled on the logit scale as
+\[ \mbox{logit}(\pi_{et})=\gamma_{et} \quad \text{and} \quad \mbox{logit}(\pi_{ct})=\gamma_{ct}. \]
+Since no covariates are included in the models, the marginal mean probabilities are calculated using the inverse logit function as $\bar{\pi}_{et}=\frac{\mbox{exp}(\gamma_{et})}{1+\mbox{exp}(\gamma_{et})}$ and $\bar{\pi}_{ct}=\frac{\mbox{exp}(\gamma_{ct})}{1+\mbox{exp}(\gamma_{ct})}$. These marginal probabilities are then used as weights to calculate the marginal mean QALYs and costs in each treatment group across the two components of the model:
+\[ \mu_{et} = \mu^{0}_{et}(1-\bar{\pi}_{et}) + \mu^{1}_{et}\bar{\pi}_{et} \quad \text{and} \quad \mu_{ct} = \mu^{0}_{ct}(1-\bar{\pi}_{ct}) + \mu^{1}_{ct}\bar{\pi}_{ct}. \]
+The \texttt{JAGS} code is replicated for the two treatment groups and by default it specifies vague prior distributions on the parameters indexing the models of $d_{ie}$ and $d_{ic}$ and those indexing the distribution of $e_i<1$ and $c_i>0$:
+\begin{itemize}
+\item[$\bullet$] $\bm \alpha^0=(\alpha^{0}_{0t},\alpha^{0)}_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\bm \beta^0=(\beta^{0}_{0t},\beta^{0}_{1t})\overset{iid}{\sim} \mbox{Normal}(0, 0.0000001)$
+\item[$\bullet$] $\text{log} \bm \sigma^{0}=(\text{log} \sigma^{0}_{et}, \text{log} \sigma^{0}_{ct}) \overset{iid}{\sim} \mbox{Uniform}(-5, 10)$
+\item[$\bullet$] $\bm \gamma=(\gamma_{et},\gamma_{ct}) \overset{iid}{\sim} \mbox{Logistic}(0, 1)$
+\end{itemize}
+Informative priors are specified on the parameters indexing the distribution of $e_i=1$ and $c_i=0$ to induce a variance as close to 0 as possible, i.e.~$\bm \sigma^1=0.000001$. 
+\item[c] We use the function \texttt{print} to show key posterior summaries of the mean QALY and cost parameters
+ <<chunk_sol4.2, eval=TRUE, echo=TRUE>>=
+NN.hur$model_output$summary[grep("mu",rownames(NN.hur$model_output$summary)),
+  c("mean","sd","2.5%","97.5%","Rhat","n.eff")]
+@
+\item[d] Density plots for the mean costs in both treatment groups can be visualised using the \texttt{diagnostic}~function
+ <<chunk_sol4.3, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+diagnostic(NN.hur, type = "denplot", param = "mu.c")
+@
+while the function \texttt{plot} is used to display the distribution of the imputed and observed cost data in both treatment groups
+ <<chunk_sol4.4, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+NN.hur.imp=plot(NN.hur, outcome = "costs")
+@
+\item[e] We display the graphs for the cost-effectiveness plane and cost-effectiveness acceptability curve to summarise the economic results from the model
+ <<chunk_sol4.5, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+ceplane.plot(NN.hur$cea)
+ceac.plot(NN.hur$cea)
+@
+The results from the bivariate Normal model fitted with the function \texttt{hurdle} are considerably different with respect to those obtained from using the functions \texttt{selection} and \texttt{pattern} and suggest that the new intervention is not cost-effective compared with the control.
+\item[f] We change the model and specify Beta and LogNormal distributions for the QALYs and costs. Since the structural values in both outcomes are handled explicitly, no rescaling is necessary when fitting these distributions to the data using a hurdle approach. We include the baseline utilities as covariates in the model for the structural ones (\texttt{model.se}) and specify a structural at random (SAR) mechanism by setting \texttt{type="SAR"}. Finally, we fit the model under a MNAR assumption about the structural ones. We assume that all the individuals with a unit baseline utility are also associated with a unit QALYs and construct the corresponding indicator variables using the following commands 
+ <<chunk_sol4.6, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+d_e=ifelse(MenSS$e==1, 1, 0)
+d_e[MenSS$u.0==1 & is.na(MenSS$e)]=1
+@
+We then pass this indicator variable to the \texttt{hurdle} function using the optional argument \texttt{d\_e}. The updated verion of the model can then be fitted using the following commands
+ <<chunk_sol4.7, eval=TRUE, echo=FALSE, include=FALSE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+BL.hur.mnar=hurdle(data = MenSS, model.eff = e ~ 1, model.cost = c ~ e,
+  model.se = se ~ u.0, model.sc = sc ~ 1, type = "SAR", se = 1, sc = 0,
+  n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "beta", 
+  dist_c = "lnorm", save_model = TRUE, d_e=d_e)
+@
+ <<chunk_sol4.7b, eval=FALSE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE>>=
+set.seed(123)
+BL.hur.mnar=hurdle(data = MenSS, model.eff = e ~ 1, model.cost = c ~ e,
+  model.se = se ~ u.0, model.sc = sc ~ 1, type = "SAR", se = 1, sc = 0,
+  n.chains = 2, n.iter = 10000, n.burnin = 1000, dist_e = "beta", 
+  dist_c = "lnorm", save_model = TRUE, d_e=d_e)
+@
+We compare the economic results between the bivariate Normal and Beta-LogNormal hurdle models in terms of the cost-effectiveness acceptability curves
+ <<chunk_sol4.8, eval=TRUE, echo=TRUE, comment=NA,warning=FALSE,error=FALSE,message=FALSE, fig.width=15,fig.height=9,out.width='65%',fig.align='center'>>=
+par(mfrow=c(1,2))
+ceac.plot(NN.hur$cea)
+ceac.plot(BL.hur.mnar$cea)
+@
+The two graphs lead to different cost-effectiveness conclusions, with the bivariate Normal model (left graph) suggesting a considerably lower probability of cost-effectiveness compared with the Beta-LogNormal model (right graph) for all values of the acceptance threshold considered.  
+\end{itemize}
+
+
+
+
+\end{document}
