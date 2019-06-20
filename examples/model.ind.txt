@@ -1,0 +1,16 @@
+model{
+
+ for(i in 1:n){
+
+  outcome[i, 1] ~ dnorm(mu[1],tau[1])
+  outcome[i, 2] ~ dnorm(mu[2],tau[2])
+
+ }
+
+ tau[1] ~ dgamma(0.001,0.001) 
+ tau[2] ~ dgamma(0.001,0.001) 
+ mu[1] ~ dnorm(0,0.0001)
+ mu[2] ~ dnorm(0,0.0001)
+ mu.diff<-mu[2]-mu[1]
+
+}

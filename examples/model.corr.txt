@@ -1,0 +1,13 @@
+model{
+
+ for(i in 1:n){
+
+  outcome[i, 1:2] ~ dmnorm(mu[1:2],tau[1:2, 1:2])
+
+ }
+
+ tau[1:2, 1:2] ~ dwish(omega[,], 2)
+ mu[1:2] ~ dmnorm(mean[],precis[,])
+ mu.diff<-mu[2]-mu[1]
+
+}
