@@ -1,0 +1,220 @@
+% --------------------------------------------------------------
+% This is all preamble stuff that you don't have to worry about.
+% Head down to where it says "Start here"
+% --------------------------------------------------------------
+ 
+\documentclass[12pt]{article}
+ 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage[section]{placeins}
+\usepackage{rotating}
+\usepackage{color}
+\usepackage[english]{babel}
+\usepackage{standalone}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{rotating}
+\usepackage{graphics}
+\graphicspath{ {image/} }
+\usepackage{listings}
+\usepackage{setspace}
+\usepackage{natbib}
+\bibpunct{(}{)}{;}{a}{,}{,}
+\usepackage{url}
+\usepackage[titletoc,title]{appendix}
+\usepackage{cite}
+\usepackage[left=1.5cm,right=1.5cm,top=2cm,bottom=2cm]{geometry}
+\usepackage[titletoc]{appendix}
+\usepackage{tikz}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;} 
+\usetikzlibrary{fit,positioning}
+\usetikzlibrary{bayesnet}
+\usetikzlibrary{shapes}
+\usetikzlibrary{arrows, decorations.markings, matrix}
+\usetikzlibrary{fit}
+\usetikzlibrary{chains}
+\usetikzlibrary{arrows}
+\usepackage[font=footnotesize, labelfont={bf}, margin=1cm]{caption}
+\usetikzlibrary {trees}
+\usetikzlibrary{arrows,positioning,shapes.geometric}
+\usepackage{forest}
+\usepackage{tikz-qtree}
+\usepackage{rotating}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{enumerate,multicol}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{enumitem,bm}
+\usepackage{parcolumns}
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}  
+\newcommand\Bstrut{\rule[-0.9ex]{0pt}{0pt}} 
+\providecommand{\keywords}[1]{{\bf{Key words:}} #1}
+\providecommand{\tables}[1]{{\bf{Tables:}} #1}
+\providecommand{\figures}[1]{{\bf{Figures:}} #1}
+\providecommand{\words}[1]{{\bf{Words:}} #1}
+\providecommand{\runhead}[1]{{\bf{Running Head:}} #1}
+\usepackage[multiple]{footmisc}
+\usepackage[sectionbib]{chapterbib}
+\usepackage{authblk}
+\usepackage{etoolbox}
+\usepackage[position=bottom]{subfig}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{ctable}
+\usepackage{fancyvrb} % for simple solution
+\usepackage{listings,color} % for colored solution
+\usepackage{moreverb}
+
+\addto{\captionsenglish}{\renewcommand{\abstractname}{\bf{Summary}}}
+
+\lstset{
+    literate={~} {$\sim$}{1}
+}
+
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+}
+ 
+
+\begin{document}
+ 
+ <<include=FALSE>>=
+library(knitr)
+opts_chunk$set(prompt = TRUE, highlight = F, background = '#FFFFFF',
+concordance=TRUE
+)
+@
+ 
+% --------------------------------------------------------------
+%                         Start here
+% --------------------------------------------------------------
+ 
+\title{\Large \textbf{Methods for addressing missing data in health economic~evaluations}}
+\author{XXXIX Spanish Health Economics Meeting \\ 
+Pre-conference worshop: Practicals}
+\date{11 June 2019 \\ \line(1,0){550} }
+
+\maketitle
+
+\vspace*{1cm}
+
+
+Make sure you have installed the latest version of \texttt{R} for your OS, which can be downloaded at \url{https://www.r-project.org/}. We recommend that you have installed the latest version of \texttt{Rstudio}, which provides an user-friendly interface with \texttt{R}, available at \url{https://www.rstudio.com/products/rstudio/download/}. You also need to download and install the latest version of \texttt{JAGS} from \url{https://sourceforge.net/projects/mcmc-jags/files/JAGS/4.x/}.  
+
+\section*{Exercise 1: Install missingHE and inspect the data}\label{sec1}
+\begin{itemize}
+\item[a] Open \texttt{Rstudio} and install \textbf{missingHE} using the command \texttt{install.packages}. Then, use the command \texttt{library} to load the package. It is good practice to save your \texttt{R} script before running it as this allows to modify and re-run your code in case you want to change something. To create a new \texttt{R} script in \texttt{Rstudio}, select file tab $\rightarrow$ new file $\rightarrow$ \texttt{R} script. Now you can write, change and run your \texttt{R} code directly from your script file. Once you are done, you can name and save the script file for later use.   
+\item[b] Once \textbf{missingHE} has been loaded, the data should be available in the object \texttt{MenSS}, which you can directly access by typing \texttt{MenSS} in your command line. This is a pilot RCT on 159 young men at risk of sexually transmitted infections (STIs), who are assigned to either the control ($t=1$) or the intervention ($t=2$) group. The dataset contains the main variables used in the health economic analysis, which include individual-level QALYs and total costs ($e_i,c_i$), baseline utilities ($u_{i0}$) and other covariates. A general overview of the types of variables included in this dataset can be obtained using the command \texttt{str}. More information about this dataset can be accessed by typing \texttt{help(MenSS)}.
+\item[c] Inspect the data with the command \texttt{summary} and check which variables are partially-observed and the proportions of missingness. Next, check whether the outcome variables present the typical complexities of HTA data. For example you can type \texttt{hist(Menss\$e)} to look at the empirical distribution of the QALYs across both treatment groups. If you are intersted in the data for a single treatment group, for example the control, you can type \texttt{hist(MenSS\$e[MenSS\$t==1])}.
+\end{itemize}
+
+\section*{Exercise 2: Selection models}\label{sec2}
+\begin{itemize}
+\item[a] As a startgin point, fit a bivariate Normal for costs and effects using the \texttt{selection} command from \textbf{missingHE}. This function has arguments which allow to fit selection models under different choices for the distributions of the outcomes and alternative assumptions about their missingness mechanisms. For example, the following command
+ <<chunk_ex2.1, eval=FALSE, echo=TRUE>>=
+NN.sel=selection(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.me = me ~ 1, model.mc = mc ~ 1, type = "MAR", n.chains = 2, 
+  n.iter = 10000, n.burnin = 1000, dist_e = "norm", dist_c = "norm", 
+  save_model = TRUE)
+@
+runs a selection model in \texttt{JAGS}, which is saved in the object \texttt{NN.sel}. The model specifies a marginal Normal distribution for the effects (controlling for the baseline utilities) and a conditional Normal distribution for the costs (given the effects) -- which effectively corresponds to a bivariate Normal model for $(e,c)$. The model assumes a MAR (specifically MCAR) assumption on both missing data mechanisms and, by default, specifies vague priors on all parameters.
+The interpretation of the different arguments of the function is the following:
+\begin{itemize}
+\item \texttt{data}. The dataframe containing the variables for the economic analysis.
+\item \texttt{model.eff} and \texttt{model.cost}. The models for the effect and cost variables, respectively. These are provided using formulae expressions in conventional \texttt{R} linear modelling syntax, where the outcome and the covariates are placed to the left and right hand side of the symbol~\texttt{$\sim$}, respectively. When there are multiple covariates, these can be additively placed to the right hand side of the formulae using the symbol \texttt{+}, while if there are no covariates, \texttt{1} should be used~instead.
+\item \texttt{model.me} and \texttt{model.mc}. The models for the missing data indicators for the effect and cost variables, respectively. By default, these are modelled using Bernoulli distributions, where the missingness probabilities are linked to other variables using logistic-linear regressions. As for \texttt{model.eff} and \texttt{model.cost}, it is possible to include covariates in both formulae. 
+
+\item \texttt{type}. The assumption about the missingness mechanisms, either \texttt{"MAR"} or \texttt{"MNAR"}. The latter can only be selected when the missingness probability for at least one outcome depends on the same variable (e.g. \texttt{model.me=me $\sim$ e}).
+\item \texttt{n.chains}, \texttt{n.iter}, \texttt{n.burnin}. Parameters related to the number of chains, iterations and burnin period to specify for the MCMC algorithm implemented by \texttt{JAGS}.
+\item \texttt{dist\_e} and \texttt{dist\_c}. Distributions selected for the effects and costs, respectively.
+\item \texttt{save\_model}. Logical argument to specify whether the \texttt{JAGS} model file should be saved or not in the current working directory. More details about all the arguments of \texttt{selection} can be seen by typing \texttt{help(selection)}.  
+\end{itemize}
+\item[b] By setting the argument \texttt{save\_model=TRUE}, the file of the \texttt{JAGS} model (named \texttt{selection.txt}) which has been written and run by the previous command is saved in your current working directory. Following the script in this file, without paying too much attention to the parts which have not been introduced in the course, make sure you can follow the code and match it with the slides from the lecture.
+\item[c] Inspect the posterior distributions of the parameters of the model using the \texttt{print} function. The key quantities of interest for the economic analysis are the mean effects and costs in each treatment group ($\mu_{et},\mu_{ct}$).
+\item[d] Assess model convergence using different types of diagnostic plots, which can be obtained using the \texttt{diagnostic} function. For example, posterior density plots for the mean effects in both groups can be obtained by typing
+ <<chunk_ex2.2, eval=FALSE, echo=TRUE>>=
+diagnostic(NN.sel, type = "denplot", param = "mu.e")
+@
+where, the first argument is the output of the \texttt{selection} function, while \texttt{type} and \texttt{param} indicate the type of diagnostic plot and family of parameters to display. The names for different types of diagnostics and families of parameters that can be selected can be seen by typing \texttt{help(diagnostic)}.
+\item[e] Check the distribution of the imputed values for effects and costs in each group using the command~\texttt{plot}.
+ <<chunk_ex2.3, eval=FALSE, echo=TRUE>>=
+imp.NN=plot(NN.sel)
+@
+The object \texttt{imp.NN} is a list which contains the observed and imputed data for both effects and costs in each group. For example, an histogram of the imputed effects in the control arm can be obtained by typing \texttt{hist(imp.NN\$`imputed data`\$effects1)}   
+\item[f] Summarise the economic results from the model using the \texttt{summary} function. State your conclusions about the cost-effectiveness of the new intervention. To obtain graphical outputs to assess cost-effectiveness, you can use some of the functions from the \textbf{BCEA} package (which should be loaded first). Cost-effectiveness plane and cost-effectiveness acceptability curve plots can then be obtained by typing \texttt{ceplane.plot(NN.sel\$cea)} and \texttt{ceac.plot(NN.sel\$cea)}, respectively.
+\item[g] Now, try to replicate the analysis by varying the assumptions of the model and compare the results across the alternative specifications. Possible choices to consider are:
+\begin{itemize}
+\item Add/remove covariates to/from the model of the effects and costs (\texttt{model.e} and \texttt{model.c}) using the covariates that are available in the MenSS dataset.
+\item Add/remove covariates to/from the model of the missing data indicators for the effects and costs (\texttt{model.me} and \texttt{model.mc}) using the variables that are available in the MenSS dataset.
+\item Explore MNAR assumptions for the effects and/or costs by setting \texttt{type="MNAR"} and including \texttt{e} and/or \texttt{c} into the formulae \texttt{model.me} and/or \texttt{model.mc}, respectively.
+\item Change the distributions of the effects and costs. Alternative choices are \texttt{"beta"} for Beta distributions (effects) and \texttt{"gamma"} or \texttt{"lnorm"} for Gamma and LogNormal distributions~(costs). Note that values of ones and zeros are not allowed when using Beta and Gamma/LogNormal distributions, respectively. Thus, a small constant, e.g.~0.05, should be subtracted/added to the effect/cost data to be able to fit these distributions.
+\end{itemize}
+\end{itemize}
+
+
+\section*{Exercise 3: Pattern mixture models}\label{sec3}
+\begin{itemize}
+\item[a] As an alternative approach to handle missing data, now fit a bivariate Normal for costs and effects using the \texttt{pattern} command from \textbf{missingHE}. This function has arguments which allow to fit pattern mixture models under different choices for the distributions of the outcomes and alternative assumptions about their missingness mechanisms. For example, the following command
+ <<chunk_ex3.1, eval=FALSE, echo=TRUE>>=
+NN.pat=pattern(data = MenSS, model.eff = e~u.0, model.cost = c~e, 
+  type = "MAR", n.chains = 2, n.iter = 10000, n.burnin = 1000, 
+  dist_e = "norm", dist_c = "norm", Delta_e = 0, Delta_c = 0, 
+  save_model = TRUE)
+@
+runs a pattern mixture model in \texttt{JAGS}, which is saved in the object \texttt{NN.pat}. The model is a bivariate Normal under MAR, and is similar to the one fitted using the \texttt{selection} function. By default, the model specifies vague priors on all parameters and identify the distributions of the missing data using the parameters estimated from the completers (CC restriction).
+In \texttt{pattern}, the arguments \texttt{model.me} and \texttt{model.mc} from \texttt{selection} are replaced with \texttt{Delta\_e} and \texttt{Delta\_c}, which denote the sensitivity parameters used to identify the model. Under MAR, both values should be set to 0, while under MNAR different values can be used. More details about all the arguments of \texttt{pattern} can be seen by typing \texttt{help(pattern)}  
+\item[b] The argument \texttt{save\_model=TRUE} saves the file of the \texttt{JAGS} model (named \texttt{pattern.txt}) in your current working directory. Following the script in this file, without paying too much attention to the parts which have not been introduced in the course, make sure you can follow the code and match it with the slides from the lecture.
+\item[c] Inspect the posterior distributions of the key parameters of interest of the model using the \texttt{print}~function.
+\item[d] Assess model convergence and the distributions of the imputed data using the \texttt{diagnostic} and \texttt{plot} functions.
+\item[e] Summarise the economic results from the model. State your conclusions about the cost-effectiveness of the new intervention. 
+\item[f] Now, try to replicate the analysis by varying the assumptions of the model and compare the results across the alternative specifications.
+As for \texttt{selection}, if Beta and/or Gamma/LogNormal distributions are specified for the effects and costs, it is necessary to subtract/add a small constant to the data to fit these distributions.
+
+To fit the model under MNAR, the argument \texttt{type} must be set to \texttt{"MNAR"} and specific values for the lower and upper bounds of the distributions of the sensitivity parameters for the effects and/or costs in both treatment groups must be provided. Specifically, under MNAR, \texttt{pattern} assumes Uniform distributions for $\Delta_e$ and $\Delta_c$, whose hyperprior values must be provided by the user.
+For example, assuming that the partially-observed individuals are associated with an average decrease in the QALYs between 0.1 and 0.2 with respect to the completers, we can include this information into the model by creating the $2\times 2$ matrix
+ <<chunk_ex3.2, eval=FALSE, echo=TRUE>>=
+prior.Delta.e=matrix(NA, nrow =  2, ncol = 2)
+prior.Delta.e[,1]=c(-0.2, -0.2) 
+prior.Delta.e[,2]=c(-0.1, -0.1)  
+@ 
+where the rows and columns represent the treatment group and range of values, respectively. The object \texttt{prior.Delta.e} can then be passed to the argument \texttt{Delta\_e} in the \texttt{pattern} function.
+\end{itemize}
+
+
+\section*{Exercise 4: Hurdle models}\label{sec4}
+\begin{itemize}
+\item[a] Although hurdle models are not, technically speaking, missingness models, they allow to explore the impact on conlcusions of alternative assumptions about the proportions of individuals who can be potentially associated with a structural value. This is particularly useful in HTA, where structural values typically occur in both outcomes (e.g. one for QALYs and zero for costs). You can use the function \texttt{hurdle} in \textbf{missingHE} to fit hurdle models to HTA data. The following code fits a bivariate Normal model using an hurdle approach to handle structural ones and zeros in the effects and costs. 
+ <<chunk_ex4.1, eval=FALSE, echo=TRUE>>=
+NN.hur=hurdle(data = MenSS, model.eff = e ~ u.0, model.cost = c ~ e, 
+  model.se = se ~ 1, model.sc = sc ~ 1, type = "SCAR", se = 1, sc = 0, 
+  n.chains = 2, n.iter = 10000, n.burnin = 1000, 
+  dist_e = "norm", dist_c = "norm", save_model = TRUE)
+@
+The \texttt{hurdle} function has similar arguments to the \texttt{selection} function, with only few exceptions. There are three main differences:
+\begin{itemize}
+\item The formulae for the models of the missing data indicators (\texttt{model.me} and \texttt{model.mc}) are replaced with two formulae for the models of the structural data indicators (\texttt{model.se} and \texttt{model.sc}). The values of these indicators may be equal to 1 (structural value), 0 (non-structural value) or missing (unobserved value).
+\item The argument \texttt{type} is now related to the assumptions about the \textbf{structural value mechanism} and can be set to either \texttt{"SCAR"} (structural completely at random) or \texttt{SAR} (structural at random). These are different assumptions compared with those about the missingness mechanisms as it is possible to have structural values even when there are no missing data. 
+\item There are two additional arguments: \texttt{se} and \texttt{sc}. They respectively indicate the value in the effect and cost data that should be treated as structural by the model. If there are no structural values for one of the two outcomes, it is possible to set either \texttt{se=NULL} or \texttt{sc=NULL} to indicate that the hurdle approach should only be used for the other outcome. More information about the arguments of the function \texttt{hurdle} can be accessed by typing \texttt{help(hurdle)}.
+\end{itemize}
+\item[b] The argument \texttt{save\_model=TRUE} saves the file of the \texttt{JAGS} model (named \texttt{hurdle.txt}) in your current working directory. Following the script in this file, without paying too much attention to the parts which have not been introduced in the course, make sure you can follow the code and match it with the slides from the lecture.
+\item[c] Inspect the posterior distributions of the key parameters of interest of the model using the \texttt{print}~function.
+\item[d] Assess model convergence and the distributions of the imputed data using the \texttt{diagnostic} and \texttt{plot} functions.
+\item[e] Summarise the economic results from the model. State your conclusions about the cost-effectiveness of the new intervention. 
+\item[f] Now, try to replicate the analysis by varying the assumptions of the model and compare the results across the alternative specifications. In contrast to both \texttt{selection} and \texttt{pattern}, when there are structural values in the outcomes, the function \texttt{hurdle} allows to fit Beta and Gamma/LogNormal distributions to the effects and costs without the need to rescale the data.  
+
+It is possible to fit the model under MNAR by providing the vectors of the structural value indicators to \texttt{hurdle}. For example, let us assume that we want to assess the impact on the results under the assumption that all the individuals with a unit baseline utility are also associated with a unit QALYs (i.e. structural ones). We can generate the desired structural value indicators using the \texttt{ifelse} function.
+ <<chunk_ex4.2, eval=FALSE, echo=TRUE>>=
+d_e=ifelse(MenSS$e==1, 1, 0) 
+d_e[MenSS$u.0==1 & is.na(MenSS$e)]=1
+@ 
+The first line creates the variable \texttt{d\_e}, taking value one, zero and missing for each individual when $e_{i}=1$, $e_{i}<1$ and $e_{i}=\text{NA}$, respectively. The second line, replaces the values of \texttt{d\_e} with 1 when $u_{i0}=1$ and $e_i$ is missing. We can then pass this indicator variable to the optional argument \texttt{d\_e} in the \texttt{hurdle} function and fit the model under MNAR.
+\end{itemize}
+
+
+
+
+\end{document}
